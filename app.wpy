@@ -1,0 +1,294 @@
+<style lang="less">
+// 全局的辅助色
+@orange:#f154a4;
+@blue:#0f82f5;
+@yellow:#f39826;
+@green:#1aad19;
+@red:#ff0000;
+@orange1:#fa5341;
+@bg:#f5f5f9;
+@nav-b:#ccc;
+@border:#e5e5e5;
+@f1:#333;
+@f2:#949799;
+@f-nav:#4d4d4d;
+page{
+  background-color: @bg;
+}
+.container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  box-sizing: border-box;
+}
+.clearfix::after{
+    clear: both;
+    content: "";
+    display: block;
+    height: 0px;
+    visibility: hidden;
+}
+.bgBox {
+  background-color: white;
+  min-height: 100vh;
+  border-top: 1px solid @border;
+}
+</style>
+
+<script>
+// 添加转换时间格式方法
+Date.prototype.timeFormat = function () {
+  var str;
+  var Hours = this.getHours();
+  if(Hours > 12){
+    str = '下午';
+    Hours = Hours - 12;
+  }else{
+    str = '上午';
+  }
+  return this.getFullYear() + "年" + (this.getMonth() + 1) + "月" + this.getDate() + "日　" + str + Hours + "点" + this.getMinutes() + "分" + this.getSeconds() + "秒";
+};
+
+// Fundebug （错误信息监控）
+var fundebug = require('fundebug-wxjs')
+fundebug.init(
+{
+  silent : true,//安静模式，开发环境下为true，生产环境为false
+  apikey: "63cae007f3248d787b916b876cb2115be9f88ce9f6dc20ae1f6e7efcf3931adf",
+  monitorHttpData : true,//收集请求错误的body(即wx.request的data参数)
+  setSystemInfo : true,//收集请求错误的用户的系统信息，比如操作系统，微信版本等等:
+})
+var TIMES;
+import wepy from 'wepy';
+import {alert} from './utils/function/alert';
+import 'wepy-async-function';
+import { getNewsListStatus } from './utils/api/common/getNewsListStatus';
+export default class MyAPP  extends wepy.app {
+
+  config = {
+    pages: [
+      'pages/brokerRegistration',//经纪人注册
+      'pages/index',//首页
+      'pages/my',//我的
+      'pages/news',//消息列表
+      'pages/publicPage',//订单详情（接单页面）
+      'pages/login',//登录（作废）
+      'pages/test',//测试（不是应用页面）
+      
+
+    ],
+    // 分包
+    subPackages: [
+      {// 分包：出租
+        "root": "packageLease",
+        "pages": [
+          'leaseInfoGather',//出租房源采集
+          'leaseHouseOrder',//出租合同编辑(合同签约摄像的下一步)
+        ]
+
+      },{// 分包：租房
+        "root": "packageRenting",
+        "pages": [
+          'intentionalAcquisitionRenting',//租房意向采集
+          'rentingHouseOrder',//出租合同编辑(合同签约摄像的下一步)
+        ]
+        
+      },{// 分包：卖房
+        "root": "packageSell",
+        "pages": [
+          'map',//用于房源周围设施地图搜索
+          'houseGather',//房产权采集页面
+          'houseGatherCamera',//身份证信息采集（拍照验证）
+          'houseInfoGather',//房源信息采集
+          'camera',//合同签约摄像（签订服务协议，拍照）
+          'sellHouseOrder',//售房合同编辑(合同签约摄像的下一步)
+          'sellHouseOrderLower',//线下售房订单编辑
+          'houseCertificateGatherCamera',//不动产权证采集
+        ]
+
+      },{// 分包：买房
+        "root": "packageBuy",
+        "pages": [
+          'buyHouseContract',//买房合同编辑（求购合同）
+          'intentionalAcquisition',//意向采集
+        ]
+
+      },{// 分包：用户中心
+        "root": "packageUser",
+        "pages": [
+          'userManagement',//个人管理
+        ]
+
+      },{// 分包：普通的二级页面(或使用率较高的普通页面)
+        "root": "packageOrdinary",
+        "pages": [
+          'success',//提交成功页面
+          'myOrder',//我的订单列表
+          'orderDetails',//订单详情
+          'houseLookup',//房源检索
+          'intention',//意向检索
+          'intentionDetails',//意向详情（求租，求购意向）
+          'myCollection',//我的收藏
+          'housingManagement',//房源管理
+          'housingManagementLease',//房源管理(出租)
+          'houseGatherList',//房源采集列表
+          'intentionalList',//意向列表（求租，求购）
+          'intentionManage',//意向管理
+          'seeContract',//查看合同
+          'newsDetails',//消息详情
+        ]
+
+      },{// 分包：其他页面
+        "root": "packageOther",
+        "pages": [
+          'complaint',//投诉
+          'evaluate',//评价
+          'seeEvaluate',//查看评价
+          'endOrder',//结单
+        ]
+      }
+    ],
+    // 分包预下载
+    preloadRule: {
+      // 进入【首页】时预下载，分包：普通的二级页面
+      "pages/index": {
+        "network": "all",
+        "packages": ["packageOrdinary"]
+      },
+      // 进入【我的】时预下载，分包：用户中心
+      "pages/my": {
+        "network": "all",
+        "packages": ["packageUser"]
+      },
+      // 进入【房源采集列表】时预下载，分包：卖房，出租
+      "packageOrdinary/houseGatherList": {
+        "network": "all",
+        "packages": ["packageSell","packageLease"]
+      },
+      // 进入【意向列表（求租，求购）表】时预下载，分包：买房，租房
+      "packageOrdinary/intentionalList": {
+        "network": "all",
+        "packages": ["packageBuy","packageRenting"]
+      },
+    },
+    window: {
+      backgroundTextStyle: 'light',
+      navigationBarBackgroundColor: 'white',
+      navigationBarTitleText: 'WeChat',
+      navigationBarTextStyle: 'black',
+      // enablePullDownRefresh: true 
+    },
+    tabBar:{
+      color:'#999',
+      selectedColor:'#0f82f5',
+      backgroundColor:'#ffffff',
+      list:[
+          {
+          pagePath:'pages/index',
+          text:'首页',
+          iconPath:'images/index_shouye02.png',
+          selectedIconPath:'images/index_shouye01.png'
+          }, {
+          pagePath: 'pages/news',
+          text: '消息',
+          iconPath:'images/index_xiaoxi02.png',
+          selectedIconPath: 'images/index_xiaoxi01.png'
+          }, {
+          pagePath: 'pages/my',
+          text: '我的',
+          iconPath:'images/index_my02.png',
+          selectedIconPath: 'images/index_my01.png'
+          }
+      ]
+    },
+    // 请求时间不超过12秒，否则会进入请求函数的fail函数
+    networkTimeout:{
+      request:12000
+    }
+  }
+
+  globalData={ //定义全局对象
+    userInfo: '',
+    token: '',//用户的token，放在请求头请求
+    tokenEndTime:'',//token过期时间
+    appId: '',//小程序appid
+    serverUrl: 'https://www.jfyy365.com/',//接口域名（生产环境）
+    httpPageUrl:'https://mobile.jfyy365.com/',//内嵌H5页面的域名（生产环境）
+    // serverUrl: 'https://jiahetech.com:8081/',//接口域名（测试环境）
+    // httpPageUrl:'https://jiahetech.com/gzapp/',//内嵌H5页面的域名（测试环境）
+    scene: '', //场景值
+
+  }
+
+  
+  onLaunch(options) {//当小程序初始化完成时，会触发 onLaunch（全局只触发一次）
+    this.globalData.scene = options.scene; //场景值
+      console.log(options);
+    // 其中只有在传递 1020、1035、1036、1037、1038、1043 这几个场景值时，才会返回referrerInfo.appId
+    if (options.referrerInfo != null) {
+      // console.log("onLaunch:",options.referrerInfo);
+      this.globalData.appId = options.referrerInfo.appId;
+    } else {
+      console.log("onLaunch:",'没有appid')
+    }
+
+    // 检查小程序是否有最新版本
+    this.updateManager();
+
+  }
+
+  onShow(){
+    console.log('全局的onshow');
+    let that = this;
+    // 获取[消息推送]的状态
+    getNewsListStatus(that).then(()=>{
+
+      TIMES = setInterval(()=>{
+        getNewsListStatus(that);
+      },120000)
+
+    })
+  }
+
+  onHide(){
+    clearInterval(TIMES);
+  }
+
+  // 小程序发生脚本错误，或者 api 调用失败时触发，会带上错误信息
+  onError(msg) {
+    fundebug.notify("onError函数", msg);
+  }
+
+ 
+  // 检查小程序是否有最新版本
+  updateManager(){
+    //检查小程序最新版本并下载
+    if (wx.getUpdateManager){
+      const updateManager = wx.getUpdateManager()
+
+      updateManager.onCheckForUpdate(function (res) {
+        // 请求完新版本信息的回调
+        console.log('正在下载最新的小程序信息，后台执行')
+      })
+
+      updateManager.onUpdateReady(function () {
+        alert.model('最新版本的小程序已经安装成功！请点击【确定】进入！',true,(res)=>{
+            // 新的版本已经下载好，调用 applyUpdate 应用新版本并重启
+            updateManager.applyUpdate()
+        })
+
+      })
+
+      updateManager.onUpdateFailed(function () {
+        // 新的版本下载失败
+        console.log('新的版本下载失败');
+      })
+
+    }
+  }
+  
+ 
+}
+</script>
